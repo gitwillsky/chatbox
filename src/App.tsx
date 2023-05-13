@@ -12,7 +12,6 @@ import { Session, createSession, Message, createMessage } from './types'
 import useStore from './store'
 import SettingWindow from './SettingWindow'
 import ChatConfigWindow from './ChatConfigWindow'
-import ChatBubbleOutlineOutlinedIcon from '@mui/icons-material/ChatBubbleOutlineOutlined';
 import SettingsIcon from '@mui/icons-material/Settings';
 import AddIcon from '@mui/icons-material/Add';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -20,7 +19,6 @@ import * as prompts from './prompts';
 import CleaningServicesIcon from '@mui/icons-material/CleaningServices';
 import Save from '@mui/icons-material/Save'
 import CleanWidnow from './CleanWindow';
-import AboutWindow from './AboutWindow';
 import { ThemeSwitcherProvider } from './theme/ThemeSwitcher';
 import { useTranslation } from "react-i18next";
 import icon from './icon.png'
@@ -28,7 +26,6 @@ import { save } from '@tauri-apps/api/dialog';
 import { writeTextFile } from '@tauri-apps/api/fs';
 import ArrowCircleUpIcon from '@mui/icons-material/ArrowCircleUp';
 import ArrowCircleDownIcon from '@mui/icons-material/ArrowCircleDown';
-import SponsorChip from './SponsorChip'
 import "./styles/App.scss"
 import MenuOpenIcon from '@mui/icons-material/MenuOpen';
 import SendIcon from '@mui/icons-material/Send';
@@ -171,10 +168,10 @@ function Main() {
                 setAtScrollBottom(false);
             }
             setNeedScroll(scrollHeight > clientHeight);
-          };
+        };
 
-          handleScroll();
-          messageListRef.current.addEventListener("scroll", debounce(handleScroll, 100));
+        handleScroll();
+        messageListRef.current.addEventListener("scroll", debounce(handleScroll, 100));
     }, []);
     const messageListToTop = () => {
         if (!messageListRef.current) {
@@ -236,23 +233,24 @@ function Main() {
         setConfigureChatConfig(store?.currentSession)
     };
     const generateName = async (session: Session) => {
-        client.replay(
-            store.settings.openaiKey,
-            store.settings.apiHost,
-            store.settings.maxContextSize,
-            store.settings.maxTokens,
-            store.settings.model,
-            store.settings.temperature,
-            prompts.nameConversation(session.messages.slice(0, 3)),
-            ({ text: name }) => {
+        client.replay({
+            apiKey: store.settings.openaiKey,
+            host: store.settings.apiHost,
+            proxyHostToken: store.settings.proxyHostToken,
+            maxContextSize: store.settings.maxContextSize,
+            maxTokens: store.settings.maxTokens,
+            modelName: store.settings.model,
+            temperature: store.settings.temperature,
+            msgs: prompts.nameConversation(session.messages.slice(0, 3)),
+            onText: ({ text: name }) => {
                 name = name.replace(/['"“”]/g, '')
                 session.name = name
                 store.updateChatSession(session)
             },
-            (err) => {
+            onError: (err) => {
                 console.log(err)
             }
-        )
+        })
     }
     const saveSession = async (session: Session) => {
         const filePath = await save({
@@ -272,41 +270,44 @@ function Main() {
     const generate = async (session: Session, promptMsgs: Message[], targetMsg: Message) => {
         messageScrollRef.current = { msgId: targetMsg.id, smooth: false }
         await client.replay(
-            store.settings.openaiKey,
-            store.settings.apiHost,
-            store.settings.maxContextSize,
-            store.settings.maxTokens,
-            store.settings.model,
-            store.settings.temperature,
-            promptMsgs,
-            ({ text, cancel }) => {
-                for (let i = 0; i < session.messages.length; i++) {
-                    if (session.messages[i].id === targetMsg.id) {
-                        session.messages[i] = {
-                            ...session.messages[i],
-                            content: text,
-                            cancel,
-                            model: store.settings.model,
-                            generating: true
+            {
+                apiKey: store.settings.openaiKey,
+                host: store.settings.apiHost,
+                proxyHostToken: store.settings.proxyHostToken,
+                maxContextSize: store.settings.maxContextSize,
+                maxTokens: store.settings.maxTokens,
+                modelName: store.settings.model,
+                temperature: store.settings.temperature,
+                msgs: promptMsgs,
+                onText: ({ text, cancel }) => {
+                    for (let i = 0; i < session.messages.length; i++) {
+                        if (session.messages[i].id === targetMsg.id) {
+                            session.messages[i] = {
+                                ...session.messages[i],
+                                content: text,
+                                cancel,
+                                model: store.settings.model,
+                                generating: true
+                            }
+                            break;
                         }
-                        break;
                     }
-                }
-                store.updateChatSession(session)
-            },
-            (err) => {
-                for (let i = 0; i < session.messages.length; i++) {
-                    if (session.messages[i].id === targetMsg.id) {
-                        session.messages[i] = {
-                            ...session.messages[i],
-                            content: t('api request failed:') + ' \n```\n' + err.message + '\n```',
-                            model: store.settings.model,
-                            generating: false
+                    store.updateChatSession(session)
+                },
+                onError: (err) => {
+                    for (let i = 0; i < session.messages.length; i++) {
+                        if (session.messages[i].id === targetMsg.id) {
+                            session.messages[i] = {
+                                ...session.messages[i],
+                                content: t('api request failed:') + ' \n```\n' + err.message + '\n```',
+                                model: store.settings.model,
+                                generating: false
+                            }
+                            break
                         }
-                        break
                     }
+                    store.updateChatSession(session)
                 }
-                store.updateChatSession(session)
             }
         )
         for (let i = 0; i < session.messages.length; i++) {
@@ -341,161 +342,145 @@ function Main() {
                 height: '100%',
             }}>
                 {showMenu && (
-                <Grid item
-                    sx={{
-                        height: '100%',
-                        [theme.breakpoints.down("sm")]: {
-                            position: 'absolute',
-                            zIndex: 100,
-                            left: '20px',
-                            right: 0,
-                            bottom: 0,
-                            top: 0,
-                        },
-                    }}
-                >
-                    <Stack
-                        className='ToolBar'
+                    <Grid item
                         sx={{
-                            width: '210px',
                             height: '100%',
                             [theme.breakpoints.down("sm")]: {
                                 position: 'absolute',
-                                zIndex: 1,
+                                zIndex: 100,
+                                left: '20px',
+                                right: 0,
+                                bottom: 0,
+                                top: 0,
                             },
                         }}
-                        spacing={2}
                     >
-                        <Toolbar variant="dense" sx={{
-                            display: "flex",
-                            alignItems: "flex-end",
-                        }} >
-                            <img src={icon} style={{
-                                width: '35px',
-                                height: '35px',
-                                marginRight: '5px',
-                            }} />
-                            <Typography variant="h5" color="inherit" component="div" style={{fontSize: '26px'}}>
-                                Chatbox
-                            </Typography>
-                        </Toolbar>
-
-                        <MenuList
+                        <Stack
+                            className='ToolBar'
                             sx={{
-                                width: '100%',
-                                position: 'relative',
-                                overflow: 'auto',
-                                height: '60vh',
-                                '& ul': { padding: 0 },
+                                width: '210px',
+                                height: '100%',
+                                [theme.breakpoints.down("sm")]: {
+                                    position: 'absolute',
+                                    zIndex: 1,
+                                },
                             }}
-                            className="scroll"
-                            subheader={
-                                <ListSubheader component="div">
-                                    {t('chat')}
-                                </ListSubheader>
-                            }
-                            component="div"
-                            ref={sessionListRef}
+                            spacing={2}
                         >
-                            <DndContext
-                                modifiers={[restrictToVerticalAxis]}
-                                sensors={sensors}
-                                collisionDetection={closestCenter}
-                                onDragEnd={handleDragEnd}
-                            >
-                                <SortableContext items={sortedSessions} strategy={verticalListSortingStrategy}>
-                                {
-                                    sortedSessions.map((session, ix) => (
-                                        <SortableItem key={session.id} id={session.id}>
-                                            <SessionItem key={session.id}
-                                                selected={store.currentSession.id === session.id}
-                                                session={session}
-                                                switchMe={() => {
-                                                    store.switchCurrentSession(session)
-                                                    textareaRef?.current?.focus()
-                                                }}
-                                                deleteMe={() => store.deleteChatSession(session)}
-                                                copyMe={() => {
-                                                    const newSession = createSession(session.name + ' copied')
-                                                    newSession.messages = session.messages
-                                                    store.createChatSession(newSession, ix)
-                                                }}
-                                                switchStarred={() => {
-                                                    store.updateChatSession({
-                                                        ...session,
-                                                        starred: !session.starred
-                                                    })
-                                                }}
-                                                editMe={() => setConfigureChatConfig(session)}
-                                            />
-                                        </SortableItem>
-                                    ))
+                            <Toolbar variant="dense" sx={{
+                                display: "flex",
+                                alignItems: "flex-end",
+                            }} >
+                                <img src={icon} style={{
+                                    width: '35px',
+                                    height: '35px',
+                                    marginRight: '5px',
+                                }} />
+                                <Typography variant="h5" color="inherit" component="div" style={{ fontSize: '26px' }}>
+                                    Chatbox
+                                </Typography>
+                            </Toolbar>
+
+                            <MenuList
+                                sx={{
+                                    width: '100%',
+                                    position: 'relative',
+                                    overflow: 'auto',
+                                    height: '60vh',
+                                    '& ul': { padding: 0 },
+                                }}
+                                className="scroll"
+                                subheader={
+                                    <ListSubheader component="div">
+                                        {t('chat')}
+                                    </ListSubheader>
                                 }
-                                </SortableContext>
-                            </DndContext>
-                        </MenuList>
-
-                        <Divider />
-
-                        <MenuList>
-                            <MenuItem onClick={handleCreateNewSession} >
-                                <ListItemIcon>
-                                    <IconButton><AddIcon fontSize="small" /></IconButton>
-                                </ListItemIcon>
-                                <ListItemText>
-                                    {t('new chat')}
-                                </ListItemText>
-                                <Typography variant="body2" color="text.secondary">
-                                    {/* ⌘N */}
-                                </Typography>
-                            </MenuItem>
-                            <MenuItem onClick={() => {
-                                setOpenSettingWindow(true)
-                            }}
+                                component="div"
+                                ref={sessionListRef}
                             >
-                                <ListItemIcon>
-                                    <IconButton><SettingsIcon fontSize="small" /></IconButton>
-                                </ListItemIcon>
-                                <ListItemText>
-                                    {t('settings')}
-                                </ListItemText>
-                                <Typography variant="body2" color="text.secondary">
-                                    {/* ⌘N */}
-                                </Typography>
-                            </MenuItem>
+                                <DndContext
+                                    modifiers={[restrictToVerticalAxis]}
+                                    sensors={sensors}
+                                    collisionDetection={closestCenter}
+                                    onDragEnd={handleDragEnd}
+                                >
+                                    <SortableContext items={sortedSessions} strategy={verticalListSortingStrategy}>
+                                        {
+                                            sortedSessions.map((session, ix) => (
+                                                <SortableItem key={session.id} id={session.id}>
+                                                    <SessionItem key={session.id}
+                                                        selected={store.currentSession.id === session.id}
+                                                        session={session}
+                                                        switchMe={() => {
+                                                            store.switchCurrentSession(session)
+                                                            textareaRef?.current?.focus()
+                                                        }}
+                                                        deleteMe={() => store.deleteChatSession(session)}
+                                                        copyMe={() => {
+                                                            const newSession = createSession(session.name + ' copied')
+                                                            newSession.messages = session.messages
+                                                            store.createChatSession(newSession, ix)
+                                                        }}
+                                                        switchStarred={() => {
+                                                            store.updateChatSession({
+                                                                ...session,
+                                                                starred: !session.starred
+                                                            })
+                                                        }}
+                                                        editMe={() => setConfigureChatConfig(session)}
+                                                    />
+                                                </SortableItem>
+                                            ))
+                                        }
+                                    </SortableContext>
+                                </DndContext>
+                            </MenuList>
 
-                            <MenuItem onClick={() => setOpenAboutWindow(true)}>
-                                <ListItemIcon>
-                                    <IconButton>
-                                        <InfoOutlinedIcon fontSize="small" />
-                                    </IconButton>
-                                </ListItemIcon>
-                                <ListItemText>
-                                    <Badge color="primary" variant="dot" invisible={!store.needCheckUpdate}
-                                    sx={{ paddingRight: '8px' }} >
-                                        <Typography sx={{ opacity: 0.5 }}>
-                                            {t('About')} ({store.version})
-                                        </Typography>
-                                    </Badge>
-                                </ListItemText>
-                            </MenuItem>
-                        </MenuList>
-                    </Stack>
-                    <Box
-                        onClick={() => setShowMenu(false)}
-                        sx={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                            [theme.breakpoints.up("sm")]: {
-                                display: 'none',
-                            },
-                        }}
-                    ></Box>
-                </Grid>)}
+                            <Divider />
+
+                            <MenuList>
+                                <MenuItem onClick={handleCreateNewSession} >
+                                    <ListItemIcon>
+                                        <IconButton><AddIcon fontSize="small" /></IconButton>
+                                    </ListItemIcon>
+                                    <ListItemText>
+                                        {t('new chat')}
+                                    </ListItemText>
+                                    <Typography variant="body2" color="text.secondary">
+                                        {/* ⌘N */}
+                                    </Typography>
+                                </MenuItem>
+                                <MenuItem onClick={() => {
+                                    setOpenSettingWindow(true)
+                                }}
+                                >
+                                    <ListItemIcon>
+                                        <IconButton><SettingsIcon fontSize="small" /></IconButton>
+                                    </ListItemIcon>
+                                    <ListItemText>
+                                        {t('settings')}
+                                    </ListItemText>
+                                    <Typography variant="body2" color="text.secondary">
+                                        {/* ⌘N */}
+                                    </Typography>
+                                </MenuItem>
+                            </MenuList>
+                        </Stack>
+                        <Box
+                            onClick={() => setShowMenu(false)}
+                            sx={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                                [theme.breakpoints.up("sm")]: {
+                                    display: 'none',
+                                },
+                            }}
+                        ></Box>
+                    </Grid>)}
                 <Grid item xs
                     sx={{
                         width: '0px',
@@ -506,7 +491,7 @@ function Main() {
                         height: '100%',
                         position: 'relative',
                     }} >
-                        <Toolbar style={{padding: '0 10px'}}>
+                        <Toolbar style={{ padding: '0 10px' }}>
                             <IconButton onClick={() => setShowMenu(!showMenu)} >
                                 {
                                     !showMenu ? (
@@ -515,7 +500,7 @@ function Main() {
                                             height: '30px',
                                         }} />
                                     ) : (
-                                        <MenuOpenIcon style={{fontSize: '26px'}} />
+                                        <MenuOpenIcon style={{ fontSize: '26px' }} />
                                     )
                                 }
                             </IconButton>
@@ -530,7 +515,6 @@ function Main() {
                                     {store.currentSession.name}
                                 </span>
                             </Typography>
-                            <SponsorChip sessionId={store.currentSession.id} />
                             <IconButton edge="start" color="inherit" aria-label="menu" sx={{ mr: 2 }}
                                 onClick={() => setSessionClean(store.currentSession)}
                             >
@@ -610,14 +594,14 @@ function Main() {
                                 }}
                                 orientation="vertical"
                             >
-                                <IconButton 
-                                    onClick={() => messageListToTop()} 
-                                    sx={{visibility: atScrollTop ? "hidden" : "visible",}}>
+                                <IconButton
+                                    onClick={() => messageListToTop()}
+                                    sx={{ visibility: atScrollTop ? "hidden" : "visible", }}>
                                     <ArrowCircleUpIcon />
                                 </IconButton>
-                                <IconButton 
+                                <IconButton
                                     onClick={() => messageListToBottom()}
-                                    sx={{visibility: atScrollBottom ? "hidden" : "visible",}}>
+                                    sx={{ visibility: atScrollBottom ? "hidden" : "visible", }}>
                                     <ArrowCircleDownIcon />
                                 </IconButton>
                             </ButtonGroup>)}
@@ -654,9 +638,6 @@ function Main() {
                         }
                     }}
                     close={() => setOpenSettingWindow(false)}
-                />
-                <AboutWindow open={openAboutWindow} version={store.version} lang={store.settings.language}
-                    close={() => setOpenAboutWindow(false)}
                 />
                 {
                     configureChatConfig !== null && (
@@ -737,7 +718,7 @@ function MessageInput(props: {
     }, [])
 
     return (
-        <form  onSubmit={(e) => {
+        <form onSubmit={(e) => {
             e.preventDefault()
             submit()
         }}>
@@ -771,7 +752,7 @@ function MessageInput(props: {
                     <Grid item xs='auto'>
                         <Button type='submit' variant="contained" size='large'
                             style={{ padding: '15px 16px' }}>
-                                <SendIcon />
+                            <SendIcon />
                         </Button>
                     </Grid>
                 </Grid>

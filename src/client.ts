@@ -9,17 +9,27 @@ export interface OnTextCallbackResult {
     cancel: () => void;
 }
 
-export async function replay(
-    apiKey: string,
-    host: string,
-    maxContextSize: string,
-    maxTokens: string,
-    modelName: string,
-    temperature: number,
-    msgs: Message[],
-    onText?: (option: OnTextCallbackResult) => void,
-    onError?: (error: Error) => void,
-) {
+export async function replay({ apiKey,
+    host,
+    proxyHostToken,
+    maxContextSize,
+    maxTokens,
+    modelName,
+    temperature,
+    msgs,
+    onText,
+    onError, }: {
+        apiKey?: string,
+        host: string,
+        proxyHostToken?: string,
+        maxContextSize: string,
+        maxTokens: string,
+        modelName: string,
+        temperature: number,
+        msgs: Message[],
+        onText?: (option: OnTextCallbackResult) => void,
+        onError?: (error: Error) => void,
+    }) {
     if (msgs.length === 0) {
         throw new Error('No messages to replay')
     }
@@ -58,12 +68,18 @@ export async function replay(
     let fullText = '';
     try {
         const messages = prompts.map(msg => ({ role: msg.role, content: msg.content }))
+        const headers: HeadersInit = {
+            'Content-Type': 'application/json',
+        };
+        if (apiKey) {
+            headers['Authorization'] = `Bearer ${apiKey}`;
+        }
+        if (proxyHostToken) {
+            headers['token'] = `Bearer ${proxyHostToken}`;
+        }
         const response = await fetch(`${host}/v1/chat/completions`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-            },
+            headers,
             body: JSON.stringify({
                 messages,
                 model: modelName,
@@ -96,6 +112,7 @@ export async function replay(
         if (hasCancel) {
             return;
         }
+        console.error(error);
         if (onError) {
             onError(error as any)
         }

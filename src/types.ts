@@ -8,7 +8,7 @@ export type Message = OpenAIMessage & {
     model?: string
 }
 
-export interface Session{
+export interface Session {
     id: string
     name: string
     messages: Message[]
@@ -38,8 +38,9 @@ export function createSession(name: string = "Untitled"): Session {
 }
 
 export interface Settings {
-    openaiKey: string
+    openaiKey?: string
     apiHost: string
+    proxyHostToken?: string;
     model: string
     maxContextSize: string
     temperature: number
@@ -66,7 +67,7 @@ export interface OpenAIMessage {
     'name'?: string;
 }
 
-export interface Config{
+export interface Config {
     uuid: string
 }
 

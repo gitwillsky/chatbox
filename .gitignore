@@ -132,3 +132,5 @@ yarn-error.log*
 next-env.d.ts
 
 tmp
+
+.xwin-cache

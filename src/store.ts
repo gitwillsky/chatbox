@@ -13,6 +13,7 @@ export function getDefaultSettings(): Settings {
     return {
         openaiKey: '',
         apiHost: 'https://api.openai.com',
+        proxyHostToken: "",
         model: "gpt-3.5-turbo",
         temperature: 0.7,
         maxContextSize: "4000",
@@ -87,31 +88,31 @@ export default function useStore() {
     const { i18n } = useTranslation();
 
     const [version, _setVersion] = useState('unknown')
-    const [needCheckUpdate, setNeedCheckUpdate] = useState(false)
-    const updateCheckTimer = useRef<NodeJS.Timeout>()
-    useEffect(() => {
-        const handler = async () => {
-            const version = await api.getVersion()
-            _setVersion(version)
-            try {
-                const config = await readConfig()
-                const os = await api.getPlatform()
-                const needUpdate = await remote.checkNeedUpdate(version, os, config)
-                setNeedCheckUpdate(needUpdate)
-            } catch (e) {
-                console.log(e)
-                setNeedCheckUpdate(true)
-            }
-        }
-        handler()
-        updateCheckTimer.current = setInterval(handler, 10 * 60 * 1000)
-        return () => {
-            if (updateCheckTimer.current) {
-                clearInterval(updateCheckTimer.current)
-                updateCheckTimer.current = undefined
-            }
-        }
-    }, [])
+    //const [needCheckUpdate, setNeedCheckUpdate] = useState(false)
+    //const updateCheckTimer = useRef<NodeJS.Timeout>()
+    // useEffect(() => {
+    //     const handler = async () => {
+    //         const version = await api.getVersion()
+    //         _setVersion(version)
+    //         try {
+    //             const config = await readConfig()
+    //             const os = await api.getPlatform()
+    //             const needUpdate = await remote.checkNeedUpdate(version, os, config)
+    //             setNeedCheckUpdate(needUpdate)
+    //         } catch (e) {
+    //             console.log(e)
+    //             setNeedCheckUpdate(false)
+    //         }
+    //     }
+    //     handler()
+    //     updateCheckTimer.current = setInterval(handler, 10 * 60 * 1000)
+    //     return () => {
+    //         if (updateCheckTimer.current) {
+    //             clearInterval(updateCheckTimer.current)
+    //             updateCheckTimer.current = undefined
+    //         }
+    //     }
+    // }, [])
 
     const [settings, _setSettings] = useState<Settings>(getDefaultSettings())
     const [needSetting, setNeedSetting] = useState(false)
@@ -192,7 +193,7 @@ export default function useStore() {
 
     return {
         version,
-        needCheckUpdate,
+        needCheckUpdate: false,
 
         settings,
         setSettings,

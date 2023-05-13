@@ -189,11 +189,20 @@ export default function SettingWindow(props: Props) {
                             value={settingsEdit.apiHost}
                             onChange={(e) => setSettingsEdit({ ...settingsEdit, apiHost: e.target.value.trim() })}
                         />
+                        <TextField
+                            margin="dense"
+                            label="Proxy Host Token"
+                            type="text"
+                            fullWidth
+                            variant="outlined"
+                            value={settingsEdit.proxyHostToken}
+                            onChange={(e) => setSettingsEdit({ ...settingsEdit, proxyHostToken: e.target.value.trim() })}
+                        />
 
                         {
                             !settingsEdit.apiHost.match(/^(https?:\/\/)?api.openai.com(:\d+)?$/) && (
                                 <Alert severity="warning">
-                                    {t('proxy warning', {apiHost:settingsEdit.apiHost })}
+                                    {t('proxy warning', { apiHost: settingsEdit.apiHost })}
                                     <Button onClick={() => setSettingsEdit({ ...settingsEdit, apiHost: getDefaultSettings().apiHost })}>{t('reset')}</Button>
                                 </Alert>
                             )
@@ -202,8 +211,8 @@ export default function SettingWindow(props: Props) {
                             settingsEdit.apiHost.startsWith('http://') && (
                                 <Alert severity="warning">
                                     {<Trans
-                                    i18nKey="protocol warning"
-                                    components={{ bold: <strong /> }}
+                                        i18nKey="protocol warning"
+                                        components={{ bold: <strong /> }}
                                     />}
                                 </Alert>
                             )
@@ -212,8 +221,8 @@ export default function SettingWindow(props: Props) {
                             !settingsEdit.apiHost.startsWith('http') && (
                                 <Alert severity="error">
                                     {<Trans
-                                    i18nKey="protocol error"
-                                    components={{ bold: <strong /> }}
+                                        i18nKey="protocol error"
+                                        components={{ bold: <strong /> }}
                                     />}
                                 </Alert>
                             )
